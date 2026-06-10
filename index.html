@@ -6,54 +6,52 @@
 <title>天河防线计划月球极轨道空间站</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--primary:#4080ff;--bg:#060a12;--text:#e2e8f0;--text-dim:#6b7a99}
+:root{--primary:#4080ff;--bg:#1a1a2e;--panel-bg:rgba(39,46,59,0.95);--panel-border:rgba(78,89,105,0.3);--text:#e5e6eb;--text-dim:#9ca3af;--accent:#4080ff;--success:#22c55e;--warning:#eab308}
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;user-select:none;overscroll-behavior:none;margin:0;padding:0}
 #map-wrap{position:fixed;inset:0;overflow:hidden}
 #map-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:default;touch-action:none}
-
-.info-panel{position:fixed;top:16px;left:20px;z-index:100;background:rgba(15,23,42,0.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(64,128,255,0.3);border-radius:12px;padding:0;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.6);overflow:hidden;min-width:220px;cursor:pointer;-webkit-user-select:none;user-select:none}
-.info-item{display:flex;justify-content:space-between;align-items:baseline;padding:4px 0;min-width:140px}
-.info-label{font-size:12px;color:#ff6b6b;text-transform:uppercase;letter-spacing:1px;font-weight:600;flex-shrink:0}
-.info-value{font-size:20px;font-weight:800;font-family:"SF Mono","Consolas",monospace;text-shadow:0 0 8px rgba(64,128,255,0.3);margin-left:12px}
-.pri{color:var(--primary)}.suc{color:#22c55e}.war{color:#eab308}
-
-
-.ctrl-btn{background:transparent;border:none;border-radius:6px;color:#94a3b8;padding:4px 10px;font-size:13px;cursor:pointer;font-family:inherit;font-weight:500;transition:all 0.2s;white-space:nowrap}
-.ctrl-btn.active{background:rgba(64,128,255,.25);color:#60a0ff}
+.info-panel{position:fixed;top:16px;left:16px;z-index:100;background:var(--panel-bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--panel-border);border-radius:12px;padding:0;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.4);overflow:hidden;min-width:220px;cursor:pointer;-webkit-user-select:none;user-select:none;transition:all 0.3s ease}
+.info-item{display:flex;justify-content:space-between;align-items:center;padding:6px 0;min-width:180px;border-bottom:1px solid rgba(78,89,105,0.15)}
+.info-item:last-child{border-bottom:none}
+.info-label{font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;font-weight:600;flex-shrink:0}
+.info-value{font-size:15px;font-weight:700;font-family:"SF Mono","Consolas",monospace;text-shadow:0 0 6px rgba(64,128,255,0.2);margin-left:16px;text-align:right}
+.pri{color:var(--text)}.suc{color:var(--success)}.war{color:var(--warning)}
+.ctrl-btn{background:transparent;border:1px solid rgba(78,89,105,0.4);border-radius:6px;color:var(--text-dim);padding:5px 12px;font-size:12px;cursor:pointer;font-family:inherit;font-weight:500;transition:all 0.2s;white-space:nowrap;flex:1}
+.ctrl-btn.active{background:rgba(64,128,255,0.15);border-color:var(--accent);color:var(--accent)}
+.ctrl-btn:hover{background:rgba(64,128,255,0.1);border-color:var(--accent)}
 #loading{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity .8s}
 #loading.hidden{opacity:0;pointer-events:none}
 .load-spinner{width:36px;height:36px;border:3px solid rgba(64,128,255,0.2);border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .load-text{color:var(--text-dim);font-size:13px}
-@media(max-width:768px){.info-panel{padding:10px 14px;gap:12px;bottom:12px;width:calc(100% - 20px);border-radius:10px}}
+@media(max-width:768px){.info-panel{left:8px;right:8px;min-width:auto}}
 </style>
 </head><body>
 <div id="loading"><div class="load-spinner"></div><div class="load-text">月球轨道空间站定位中...</div></div>
 <div id="map-wrap"><canvas id="map-canvas"></canvas></div>
 
 <div class="info-panel" id="statusBar" onclick="toggleStatusBar()">
-  <div id="statusBarHead" style="display:flex;align-items:center;gap:10px;padding:8px 14px">
-    <span style="font-size:17px;font-weight:700;color:#e2e8f0">🏛️ 天河防线计划</span>
-    <span style="font-size:12px;color:#22c55e" id="statusSummary">空间站运行中</span>
-    <span style="font-size:11px;color:#6b7a99;margin-left:auto" id="toggleHint">▲ 收起</span>
+    <div id="statusBarHead" style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid rgba(78,89,105,0.2)">
+    <span style="font-size:15px;font-weight:700;color:#e5e6eb">🏛️ 天河防线计划</span>
+    <span style="font-size:11px;color:#4080ff;font-weight:500" id="statusSummary">运行中</span>
+    <span style="font-size:11px;color:var(--text-dim);margin-left:auto;cursor:pointer" id="toggleHint">▲</span>
   </div>
-  <div id="statusBarBody" style="border-top:1px solid rgba(64,128,255,0.15)">
-    <div style="display:flex;flex-direction:column;gap:4px;padding:8px 14px 8px 14px">
+    <div id="statusBarBody" style="padding:12px 16px">
+    <div style="display:flex;flex-direction:column;gap:2px">
       <div class="info-item"><span class="info-label">纬度</span><span class="info-value pri" id="latitude">0.0</span></div>
       <div class="info-item"><span class="info-label">经度</span><span class="info-value pri" id="longitude">0.0</span></div>
       <div class="info-item"><span class="info-label">高度</span><span class="info-value pri" id="altitude">100 km</span></div>
       <div class="info-item"><span class="info-label">速度</span><span class="info-value suc" id="speed">1.63 km/s</span></div>
       <div class="info-item"><span class="info-label">周期</span><span class="info-value war" id="period">2.0 h</span></div>
-      <div class="info-item"><span class="info-label">圈数</span><span class="info-value" id="orbit-num">#001</span></div>
+      <div class="info-item"><span class="info-label">圈数</span><span class="info-value pri" id="orbit-num">#001</span></div>
     </div>
-    <div style="display:flex;gap:4px;padding:4px 14px 10px 14px;border-top:1px solid rgba(64,128,255,0.1);margin-top:4px">
+    <div style="display:flex;gap:6px;margin-top:12px;padding-top:10px;border-top:1px solid rgba(78,89,105,0.2)">
       <button class="ctrl-btn active" id="btn-track" onclick="event.stopPropagation();toggleTrack()">◉ 轨道</button>
       <button class="ctrl-btn active" id="btn-labels" onclick="event.stopPropagation();toggleLabels()">◎ 标注</button>
       <button class="ctrl-btn" onclick="event.stopPropagation();resetView()">⟲ 复位</button>
     </div>
   </div>
-</div>
-<script>
+</div><script>
 
 var statusExpanded=true;
 function toggleStatusBar(){
