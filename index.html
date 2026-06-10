@@ -7,9 +7,9 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--primary:#4080ff;--bg:#060a12;--text:#e2e8f0;--text-dim:#6b7a99}
-html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;user-select:none}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;user-select:none;overscroll-behavior:none}
 #map-wrap{width:100%;height:100vh;position:relative;overflow:hidden}
-#map-canvas{width:100%;height:100%;display:block;cursor:default}
+#map-canvas{width:100%;height:100%;display:block;cursor:default;touch-action:none}
 .top-bar{position:fixed;top:0;left:0;right:0;z-index:100;height:56px;background:rgba(6,10,18,0.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-bottom:1px solid rgba(64,128,255,0.3);display:flex;align-items:center;padding:0 24px;font-size:22px;font-weight:700}
 .info-panel{position:fixed;top:64px;left:20px;z-index:100;background:rgba(15,23,42,0.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(64,128,255,0.3);border-radius:12px;padding:0;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.6);overflow:hidden;min-width:220px;cursor:pointer;-webkit-user-select:none;user-select:none}
 .info-item{display:flex;justify-content:space-between;align-items:baseline;padding:4px 0;min-width:140px}
@@ -81,7 +81,7 @@ var W,H,zm=1;
 function rs(){var w=document.getElementById("map-wrap"),d=window.devicePixelRatio||1;W=w.clientWidth;H=w.clientHeight;cv.width=W*d;cv.height=H*d;cv.style.width=W+"px";cv.style.height=H+"px";cx.setTransform(d,0,0,d,0,0);dw()}
 window.addEventListener("resize",rs);
 // drag removed - fullscreen fixed view
-cv.addEventListener("wheel",function(e){e.preventDefault();zm=Math.max(0.3,Math.min(20,zm*(e.deltaY>0?0.92:1.08)));dw()},{passive:false});
+window.addEventListener("wheel",function(e){e.preventDefault();zm=Math.max(1,Math.min(20,zm*(e.deltaY>0?0.92:1.08)));dw()},{passive:false});
 function rv(){zm=1;dw()}
 function resetView(){rv()}
 var TW=2048,TH=1024,texC=null;
