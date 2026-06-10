@@ -1,0 +1,117 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>天河防线计划月球极轨道空间站</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--primary:#4080ff;--bg:#060a12;--text:#e2e8f0;--text-dim:#6b7a99}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;user-select:none}
+#map-wrap{width:100%;height:100vh;position:relative;overflow:hidden}
+#map-canvas{width:100%;height:100%;display:block;cursor:grab}
+.top-bar{position:fixed;top:0;left:0;right:0;z-index:100;height:56px;background:rgba(6,10,18,0.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-bottom:1px solid rgba(64,128,255,0.3);display:flex;align-items:center;padding:0 24px;font-size:22px;font-weight:700}
+.info-panel{position:fixed;top:64px;left:20px;z-index:100;background:rgba(15,23,42,0.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(64,128,255,0.3);border-radius:12px;padding:0;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.6);overflow:hidden;min-width:220px;cursor:pointer;-webkit-user-select:none;user-select:none}
+.info-item{display:flex;justify-content:space-between;align-items:baseline;padding:4px 0;min-width:140px}
+.info-label{font-size:12px;color:#ff6b6b;text-transform:uppercase;letter-spacing:1px;font-weight:600;flex-shrink:0}
+.info-value{font-size:20px;font-weight:800;font-family:"SF Mono","Consolas",monospace;text-shadow:0 0 8px rgba(64,128,255,0.3);margin-left:12px}
+.pri{color:var(--primary)}.suc{color:#22c55e}.war{color:#eab308}
+
+
+.ctrl-btn{background:transparent;border:none;border-radius:6px;color:#94a3b8;padding:4px 10px;font-size:13px;cursor:pointer;font-family:inherit;font-weight:500;transition:all 0.2s;white-space:nowrap}
+.ctrl-btn.active{background:rgba(64,128,255,.25);color:#60a0ff}
+#loading{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity .8s}
+#loading.hidden{opacity:0;pointer-events:none}
+.load-spinner{width:36px;height:36px;border:3px solid rgba(64,128,255,0.2);border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load-text{color:var(--text-dim);font-size:13px}
+@media(max-width:768px){.info-panel{padding:10px 14px;gap:12px;bottom:12px;width:calc(100% - 20px);border-radius:10px}}
+</style>
+</head><body>
+<div id="loading"><div class="load-spinner"></div><div class="load-text">月球轨道空间站定位中...</div></div>
+<div id="app"><div class="top-bar"><span>🏛️ 天河防线计划</span><span style="font-size:13px;color:#94a3b8;font-weight:500;margin-left:8px">月球极轨道空间站实时追踪</span></div>
+<div id="map-wrap"><canvas id="map-canvas"></canvas></div>
+</div>
+
+<div class="info-panel" id="statusBar" onclick="toggleStatusBar()">
+  <div id="statusBarHead" style="display:flex;align-items:center;gap:10px;padding:8px 14px">
+    <span style="font-size:17px;font-weight:700;color:#e2e8f0">🏛️ 天河防线计划</span>
+    <span style="font-size:12px;color:#22c55e" id="statusSummary">空间站运行中</span>
+    <span style="font-size:11px;color:#6b7a99;margin-left:auto" id="toggleHint">▲ 收起</span>
+  </div>
+  <div id="statusBarBody" style="border-top:1px solid rgba(64,128,255,0.15)">
+    <div style="display:flex;flex-direction:column;gap:4px;padding:8px 14px 8px 14px">
+      <div class="info-item"><span class="info-label">纬度</span><span class="info-value pri" id="latitude">0.0</span></div>
+      <div class="info-item"><span class="info-label">经度</span><span class="info-value pri" id="longitude">0.0</span></div>
+      <div class="info-item"><span class="info-label">高度</span><span class="info-value pri" id="altitude">100 km</span></div>
+      <div class="info-item"><span class="info-label">速度</span><span class="info-value suc" id="speed">1.63 km/s</span></div>
+      <div class="info-item"><span class="info-label">周期</span><span class="info-value war" id="period">2.0 h</span></div>
+      <div class="info-item"><span class="info-label">圈数</span><span class="info-value" id="orbit-num">#001</span></div>
+    </div>
+    <div style="display:flex;gap:4px;padding:4px 14px 10px 14px;border-top:1px solid rgba(64,128,255,0.1);margin-top:4px">
+      <button class="ctrl-btn active" id="btn-track" onclick="event.stopPropagation();toggleTrack()">◉ 轨道</button>
+      <button class="ctrl-btn active" id="btn-labels" onclick="event.stopPropagation();toggleLabels()">◎ 标注</button>
+      <button class="ctrl-btn" onclick="event.stopPropagation();resetView()">⟲ 复位</button>
+    </div>
+  </div>
+</div>
+<script>
+
+var statusExpanded=true;
+function toggleStatusBar(){
+  statusExpanded=!statusExpanded;
+  var body=document.getElementById("statusBarBody");
+  var hint=document.getElementById("toggleHint");
+  var summary=document.getElementById("statusSummary");
+  if(!body||!hint||!summary)return;
+  if(statusExpanded){
+    body.style.display="flex";
+    hint.textContent="\u25b2 \u6536\u8d77";
+    summary.textContent="\u7a7a\u95f4\u7ad9\u8fd0\u884c\u4e2d";
+  }else{
+    body.style.display="none";
+    hint.textContent="\u25bc \u5c55\u5f00";
+    summary.textContent="\u70b9\u51fb\u67e5\u770b";
+  }
+}
+var CFG={moonRadius:1737,orbitAlt:100,orbitR:1837,orbitSpeed:1.634,period:7063,inclination:88.5,moonRotation:360/(27.3*24*3600),showTrack:true,showLabels:true};
+var D=Math.PI/180,I=CFG.inclination*D;
+var cv=document.getElementById("map-canvas"),cx=cv.getContext("2d");
+var W,H,ox=0,oy=0,zm=1,drg=false,dsx,dsy;
+function rs(){var w=document.getElementById("map-wrap"),d=window.devicePixelRatio||1;W=w.clientWidth;H=w.clientHeight;cv.width=W*d;cv.height=H*d;cv.style.width=W+"px";cv.style.height=H+"px";cx.setTransform(d,0,0,d,0,0);dw()}
+window.addEventListener("resize",rs);
+cv.addEventListener("mousedown",function(e){drg=true;dsx=e.clientX-ox;dsy=e.clientY-oy});
+cv.addEventListener("mousemove",function(e){if(drg){ox=e.clientX-dsx;oy=e.clientY-dsy;dw()}});
+cv.addEventListener("mouseup",function(){drg=false});
+cv.addEventListener("mouseleave",function(){drg=false});
+cv.addEventListener("wheel",function(e){e.preventDefault();zm=Math.max(0.3,Math.min(20,zm*(e.deltaY>0?0.92:1.08)));dw()},{passive:false});
+function rv(){ox=0;oy=0;zm=1;dw()}
+var TW=2048,TH=1024,texC=null;
+function ldT(){if(texC)return Promise.resolve(texC);return new Promise(function(r){var img=new Image();img.onload=function(){var c=document.createElement("canvas");c.width=TW;c.height=TH;var x=c.getContext("2d");x.drawImage(img,0,0,TW,TH);texC=c;r(c)};img.onerror=function(){r(fbT())};img.src="moon_upscaled.jpg"})}
+function fbT(){if(texC)return texC;var c=document.createElement("canvas");c.width=TW;c.height=TH;var x=c.getContext("2d"),d=x.createImageData(TW,TH),p=d.data;for(var y=0;y<TH;y++)for(var xi=0;xi<TW;xi++){var ln=(xi/TW)*360-180,lt=90-(y/TH)*180;var r=172,g=162,b=143;var mar=[[-45,15,80],[-15,35,75],[30,8,70],[20,28,72],[55,-8,75],[-15,-20,78],[60,17,72],[0,55,80]];for(var mi=0;mi<mar.length;mi++){var dl=ln-mar[mi][0];if(dl>180)dl-=360;if(dl<-180)dl+=360;var da=lt-mar[mi][1],ds=Math.sqrt(dl*dl+da*da);if(ds<mar[mi][2]){var dk=(1-ds/mar[mi][2])*(1-ds/mar[mi][2])*50;r-=dk;g-=dk*.94}}var i=(y*TW+xi)*4;p[i]=Math.max(55,Math.min(225,r));p[i+1]=Math.max(50,Math.min(215,g));p[i+2]=Math.max(40,Math.min(200,b));p[i+3]=255}x.putImageData(d,0,0);texC=c;return c}
+var feats=[
+{n:"风暴洋",ln:-45,lt:15},{n:"雨海",ln:-15,lt:35},{n:"静海",ln:30,lt:8},{n:"澄海",ln:20,lt:28},{n:"丰富海",ln:55,lt:-8},{n:"云海",ln:-15,lt:-20},{n:"危海",ln:60,lt:17},{n:"冷海",ln:0,lt:55},{n:"酒海",ln:35,lt:-15},{n:"湿海",ln:-38,lt:-24},{n:"汽海",ln:5,lt:13},{n:"南海",ln:90,lt:-40},{n:"东方海",ln:-95,lt:-20},{n:"第谷",ln:-11,lt:-43,z:1},{n:"哥白尼",ln:-20,lt:10,z:1},{n:"开普勒",ln:-38,lt:8,z:1},{n:"柏拉图",ln:-9,lt:52,z:1},{n:"克拉维斯",ln:-14,lt:-58,z:1},{n:"亚平宁",ln:-4,lt:19,z:2},{n:"高加索",ln:10,lt:38,z:2},{n:"阿尔卑斯",ln:0,lt:47,z:2},{n:"★ 天河防线计划月球基地",ln:0,lt:-89.5,z:3}
+];var lbC=null;
+function gL(){var c=document.createElement("canvas");c.width=TW;c.height=TH;var x=c.getContext("2d");for(var i=0;i<feats.length;i++){var f=feats[i];var mx=(f.ln+180)/360*TW,my=(90-f.lt)/180*TH;if(f.z===3){x.shadowColor="#fbbf24";x.shadowBlur=25;x.fillStyle="#fbbf24";x.beginPath();x.arc(mx,my,14,0,Math.PI*2);x.fill();x.shadowBlur=0;x.fillStyle="#fff";x.font="bold 22px PingFang SC,Microsoft YaHei,sans-serif";x.textAlign="center";x.textBaseline="bottom";x.fillText(f.n,mx,my-8)}else{x.fillStyle=f.z?"rgba(180,220,255,0.7)":"rgba(200,230,255,0.85)";x.font=(f.z?16:20)+"px PingFang SC,Microsoft YaHei,sans-serif";x.textAlign="center";x.textBaseline="top";x.fillText(f.n,mx,my+4)}}lbC=c;return c}
+function gp(t){var th=(t*CFG.orbitSpeed/CFG.orbitR)%(2*Math.PI);var la=Math.asin(Math.sin(th)*Math.sin(I))*180/Math.PI;var lo=Math.atan2(Math.cos(th),Math.sin(th)*Math.cos(I))*180/Math.PI;lo=((lo+t*CFG.moonRotation)%360+540)%360-180;return{lat:la,lon:lo,theta:th}}
+function uv(lon,lat){return{u:(lon+180)/360,v:(90-lat)/180}}
+function dw(){var dpr=window.devicePixelRatio||1;cx.save();cx.setTransform(dpr,0,0,dpr,0,0);cx.clearRect(0,0,W,H);cx.translate(ox,oy);cx.scale(zm,zm);cx.translate(W/2,H/2);var tw=Math.max(W/zm*1.2,TW),th=tw/2;
+ldT().then(function(tex){cx.drawImage(tex,-tw/2,-th/2,tw,th);
+cx.strokeStyle="rgba(100,180,255,0.12)";cx.lineWidth=1/zm;for(var la=-60;la<=60;la+=30){var y=-la/180*th;cx.beginPath();cx.moveTo(-tw/2,y);cx.lineTo(tw/2,y);cx.stroke()}
+for(var lo=-150;lo<=150;lo+=30){var x=lo/360*tw;cx.beginPath();cx.moveTo(x,-th/2);cx.lineTo(x,th/2);cx.stroke()}
+cx.strokeStyle="rgba(100,180,255,0.2)";cx.lineWidth=1.5/zm;cx.setLineDash([4/zm,4/zm]);cx.beginPath();cx.moveTo(-tw/2,0);cx.lineTo(tw/2,0);cx.stroke();cx.setLineDash([]);
+var now=Date.now()/1000;
+if(CFG.showLabels){cx.drawImage(lbC||gL(),-tw/2,-th/2,tw,th)}
+if(CFG.showTrack){var p=2*Math.PI*CFG.orbitR/CFG.orbitSpeed;for(var i=1;i<=180;i++){var p1=gp(now+((i-1)/180)*p),p2=gp(now+(i/180)*p),a=0.6-(i/180)*0.55;if(a>0){var u1=uv(p1.lon,p1.lat),u2=uv(p2.lon,p2.lat);cx.strokeStyle="rgba(64,200,255,"+a+")";cx.lineWidth=(5+(2-i/90))/zm;cx.beginPath();cx.moveTo((u1.u-0.5)*tw,(u1.v-0.5)*th);cx.lineTo((u2.u-0.5)*tw,(u2.v-0.5)*th);cx.stroke()}}}
+var ft=[];for(var i=0;i<=360;i++){ft.push(gp(now+(i/360)*p*2))}cx.strokeStyle="rgba(64,128,255,0.4)";cx.lineWidth=3/zm;cx.beginPath();for(var i=0;i<ft.length;i++){var u=uv(ft[i].lon,ft[i].lat);i===0?cx.moveTo((u.u-0.5)*tw,(u.v-0.5)*th):cx.lineTo((u.u-0.5)*tw,(u.v-0.5)*th)}cx.stroke();
+var pos=gp(now),su=uv(pos.lon,pos.lat),sx=(su.u-0.5)*tw,sy=(su.v-0.5)*th;
+var g=cx.createRadialGradient(sx,sy,0,sx,sy,25/zm);g.addColorStop(0,"rgba(34,197,94,0.5)");g.addColorStop(0.3,"rgba(34,197,94,0.12)");g.addColorStop(1,"rgba(34,197,94,0)");cx.fillStyle=g;cx.beginPath();cx.arc(sx,sy,25/zm,0,Math.PI*2);cx.fill();
+cx.shadowColor="#22c55e";cx.shadowBlur=15/zm;cx.fillStyle="#22c55e";cx.beginPath();cx.arc(sx,sy,10/zm,0,Math.PI*2);cx.fill();cx.shadowBlur=0;cx.fillStyle="#fff";cx.beginPath();cx.arc(sx,sy,5/zm,0,Math.PI*2);cx.fill();
+cx.fillStyle="rgba(34,197,94,0.9)";cx.font=Math.max(12,22/zm)+"px PingFang SC,Microsoft YaHei,sans-serif";cx.textAlign="center";cx.textBaseline="bottom";cx.fillText("● 月球空间站",sx,sy-6/zm);
+document.getElementById("latitude").textContent=Math.abs(pos.lat).toFixed(1)+"\u00b0 "+(pos.lat>=0?"N":"S");document.getElementById("longitude").textContent=Math.abs(pos.lon).toFixed(1)+"\u00b0 "+(pos.lon>=0?"E":"W");document.getElementById("altitude").textContent="100 km";document.getElementById("speed").textContent=CFG.orbitSpeed.toFixed(3)+" km/s";document.getElementById("period").textContent="~"+(CFG.period/3600).toFixed(2)+" h";document.getElementById("orbit-num").textContent="#"+String(Math.floor(now/CFG.period)+1).padStart(3,"0");cx.restore()})}
+function toggleTrack(){CFG.showTrack=!CFG.showTrack;document.getElementById("btn-track").classList.toggle("active");dw()}
+function toggleLabels(){CFG.showLabels=!CFG.showLabels;document.getElementById("btn-labels").classList.toggle("active");dw()}
+rs();setTimeout(function(){document.getElementById("loading").classList.add("hidden")},600);var lf=0;(function al(t){if(!lf||t-lf>50){dw();lf=t}requestAnimationFrame(al)})(0);
+</script>
+</body>
+</html>
